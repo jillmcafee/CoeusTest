@@ -1,0 +1,740 @@
+<project name="Coeus5" default="build" basedir=".">
+	
+	<record name="ant_log.txt" action="start"/>
+
+	<!-- Load build properties -->
+	<property file="build51dk.properties"/>
+	
+	<!-- Create a directory for Project Release -->
+	<tstamp/>
+	<property name="TIMESTAMP" value="${DSTAMP}_${TSTAMP}"/>
+	<property name="RELEASE.HOME" value="${RELEASE.BUNDLE.NAME}${RELEASE.DATE}${RELEASE.VERSION}_${TIMESTAMP}"/>
+	
+	<!-- Actual Project source location under Project release directory -->
+	<property name="SRC.HOME" value="${SOURCE.HOME}"/>
+	
+	<!-- Actual Project build location under Project release directory 
+       where all files are available in compiled format in similar file structure of 
+       Project source directory   
+  -->
+	<property name="BUILD.HOME" value="${RELEASE.HOME}/b"/>
+	
+	<!-- Actual Project dist location under Project release directory 
+       where all the files available that are to be delivered in archive (zip,jar or war ) format       
+  -->
+	<property name="DIST.HOME" value="${RELEASE.HOME}/d"/>
+	
+	<!-- Actual Deploy location application that is about to be executed and run in Tomcat4.x -->
+	<property name="DEPLOY.HOME" value="${CATALINA.HOME}/webapps"/>
+	
+	<!-- ################################################################### -->
+	<!-- JM 9-6-2011 Instance specific files - UPDATE HERE FOR EACH INSTANCE -->
+	<property name="INST.HOME" value="${INSTANCE.HOME}/DEV"/>
+	<property name="BIRT.HOME" value="${BIRT.ENV}/DEV"/>
+	<property name="BIRT" value="${BIRT.ENV}/"/>
+	<!-- ################################################################### -->
+
+	<!-- Java Compiler optimized Options -->
+	<property name="COMPILE.DEBUG" value="true"/>
+	<property name="COMPILE.DEPRECATION" value="false"/>
+	<property name="COMPILE.OPTIMIZE" value="true"/>
+	<path id="COMPILE.CLASSPATH">
+		<!-- Include all elements that Tomcat exposes to applications -->
+		<!-- keep the below dir in classpath -->
+		<pathelement location="${CATALINA.HOME}/common/classes"/>
+		<!-- keep the below dir in classpath -->
+		<pathelement location="${CATALINA.HOME}/classes"/>
+		<!-- keep the below jar files in classpath -->
+		<!-- JM 5-6-2014 update for Tomcat 6
+		<fileset dir="${CATALINA.HOME}/common/lib">
+			<include name="*.jar"/>
+		</fileset>
+		-->
+		<fileset dir="${CATALINA.HOME}/lib">
+			<include name="*.jar"/>
+		</fileset>
+		<!-- Include the application specific libraries -->
+		<fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib">
+			<include name="*.jar"/>
+		</fileset>
+		
+			
+	</path>
+	
+ 
+  
+	
+	<!-- Clean the the Project Release directory if already exists -->
+	<target name="PREPARE" description="Deletes the release home directory if already exists and constructs required directories">
+		
+		<!-- Create all necessary directories for project release -->
+		<mkdir dir="${RELEASE.HOME}"/>
+		<mkdir dir="${BUILD.HOME}"/>
+		<mkdir dir="${DIST.HOME}"/>
+		<mkdir dir="${JAVADOC.HOME}"/>
+		
+		
+		<condition property="cond-is-true">
+			<and>
+			  	<equals arg1="${NON_MIT_PRODUCTION_BUILD}" arg2="true"/>
+		 	</and>
+  		</condition>
+	</target>
+	
+	<target name="CONDITIONAL" depends="PREPARE" if="cond-is-true">
+		<copy file="${SRC.HOME}/Server/web/coeuslite/mit/irb/cwMainPageOtherSchool.jsp" tofile="${SRC.HOME}/Server/web/coeuslite/mit/irb/cwMainPage.jsp"/>
+	</target>
+	
+
+	<!-- Compile Server side classes and place in appropriate directories-->
+	<target name="COMPILESERVERSIDE" depends="CONDITIONAL" description="Compiles source files that are in web-inf directory">
+		<mkdir dir="${BUILD.HOME}/WEB-INF/classes"/>
+		<mkdir dir="${BUILD.HOME}/WEB-INF/lib"/>
+		<mkdir dir="${BUILD.HOME}/WEB-INF/classes/META-INF"/>
+		<mkdir dir="${BUILD.HOME}/WEB-INF/classes/META-INF/services"/>
+		<!-- To avoid version mismatching -->
+		<delete file="${SRC.HOME}/Server/web/WEB-INF/lib/struts.jar"/>
+		<copy file="${SRC.HOME}/Server/web/WEB-INF/lib/struts1.2.8.jar" tofile="${SRC.HOME}/Server/web/WEB-INF/lib/struts.jar"/>
+		<!-- JM 6-7-2012 update memory from 512 to 1024 -->
+		<javac srcdir="${SRC.HOME}/Server/src" destdir="${BUILD.HOME}/WEB-INF/classes" debug="${COMPILE.DEBUG}" deprecation="${COMPILE.DEPRECATION}" fork="yes" memoryMaximumSize="1024m" optimize="${COMPILE.OPTIMIZE}" encoding="ISO-8859-1">
+		<!-- JM END -->
+			<classpath refid="COMPILE.CLASSPATH"/>
+		</javac>
+		<!-- place all server side coeus beans into client side coeus beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/bean" includes="**/*.class" excludes="**/*Txn*.class,**/CoeusMessageResourcesBean.class,**/IndicatorLogic.class"/>
+		</copy>
+		<!-- place all server side irb beans into client side coeus beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/irb/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/irb/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- place all server side codetable beans into client side coeus beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/codetable/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/codetable/bean" includes="**/*.class" excludes="**/CodeTableTxnBean.class"/>
+		</copy>
+		<!-- place all server side iacuc beans into client side coeus beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/iacuc/bean">
+		        <fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/iacuc/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- place all server side organization beans into client side organization beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/organization/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/organization/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- place all server side rolodexmaint beans into client side rolodexmaint beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/rolodexmaint/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/rolodexmaint/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- place all server side search beans into client side search beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/search/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/search/bean" includes="**/*.class" excludes="**/ProcessSearchXMLBean.class,
+				**/SearchExecutionBean.class,**/SearchXMLDocument.class"/>
+		</copy>
+		<!-- place all server side sponsormaint beans into client side sponsormaint beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/sponsormaint/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/sponsormaint/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- place all server side unit beans into client side unit beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/unit/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/unit/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- JM 12-7-2012 place server side vanderbilt beans into client side beans so classes will compile -->
+		<copy todir="${BUILD.HOME}/edu/vanderbilt/coeus/award/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/vanderbilt/coeus/award/bean" includes="**/*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/vanderbilt/coeus/instprop/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/vanderbilt/coeus/instprop/bean" includes="**/*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/vanderbilt/coeus/customfunctions/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/vanderbilt/coeus/customfunctions/bean" includes="**/*.class"/>
+		</copy>
+		<!-- JM END -->
+
+		<!--    prps start   -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/customelements/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/customelements/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/departmental/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/departmental/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/propdev/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/propdev/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/user/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/user/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/user/auth">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/user/auth" includes="**/CoeusAuthService.class,**/AuthResponseListener.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/user/auth/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/user/auth/bean" includes="**/*.class" excludes="**/*Txn*.class,**/MultiCampusUserInfoBean.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/award/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/award/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/award">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/award" includes="**/AwardLabelConstants.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/businessrules/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/businessrules/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/instprop/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/instprop/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/subcontract/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/subcontract/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/negotiation/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/negotiation/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/s2s/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/s2s/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/s2s/validator">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/s2s/validator" includes="S2SValidationException.class,S2SValidationException$ErrorBean.class,UniqueSchemaNotFoundException.class,FormException.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/s2s">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/s2s" includes="Attachment.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/admin/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/admin/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/mapsrules/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/mapsrules/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- added for questionnaire start -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/questionnaire/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/questionnaire/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- added for questionnaire end -->
+		<!-- added for routing start -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/routing/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/routing/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- added for routing end -->
+
+		<!-- added for UMDNJ reports start -->
+		<copy todir="${BUILD.HOME}/edu/umdnj/coeus/reporting/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/umdnj/coeus/reporting/bean" includes="**/PIBean.class, **/UnitHierarchyBean.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- added for UMDNJ reports end -->
+
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/centraladmin/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/centraladmin/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- Added for coeus4.3 for E-mail enhancement  - starts -->
+		<copy  todir ="${BUILD.HOME}/edu/mit/coeus/mail/bean">       
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/mail/bean" includes="**/*.class" excludes="**/*Txn*.class,**/*SendMailService*.class"/>       
+		</copy>
+	      <copy  todir ="${BUILD.HOME}/edu/mit/coeus/mailaction/bean">       
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/mailaction/bean" includes="**/*.class" excludes="**/*Txn*.class"/>       
+		</copy>
+  	      <copy  todir ="${BUILD.HOME}/edu/mit/coeus/personroles/bean">       
+		<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/personroles/bean" includes="**/*.class" excludes="**/*Txn*.class"/>       
+		</copy>               
+		<!-- Added for coeus4.3 for E-mail enhancement - ends -->
+		<copy todir="${BUILD.HOME}">
+			<fileset dir="${BUILD.HOME}/WEB-INF/lib" includes="**/fop.jar,**/avalon-framework-4.2.0.jar,**/batik-all-1.6.jar"/>
+		</copy>
+		<!-- Creating brokers directory in the client side -->
+		<mkdir dir="${BUILD.HOME}/edu/mit/coeus/brokers"/>
+		<!-- place all server side broker beans into client side broker beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/brokers">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/brokers" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/budget/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/budget/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/budget/calculator/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/budget/calculator/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+        	<!-- copy all server side budget calculator to client side -->  		
+        	<copy  todir ="${BUILD.HOME}/edu/mit/coeus/budget/calculator">
+            	<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/budget/calculator" includes="**/BudgetPeriodCalculator.class"/>       
+       	 </copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/budget/report">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/budget/report" includes="**/ReportGenerator.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/locking">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/locking" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/rates/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/rates/bean" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<!-- place all server side broker beans into client side broker beans -->
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils" includes="**/AppointmentTypsConstants.class,
+                                    **/CategoryCostTypeConstants.class,
+                                    **/CoeusPropertyKeys.class,
+                                    **/CoeusConstants.class,
+                                    **/KeyConstants.class,
+                                    **/ComboBoxBean.class,
+                                    **/CoeusVector*.class,
+                                    **/DateUtils.class,
+                                    **/ModuleConstants.class,
+                                    **/RateClassTypeConstants.class,
+                                    **/TypeConstants.class,
+                                    **/ObjectCloner.class,
+				    		**/TypeConstants.class,
+				    		**/Utils.class,
+						**/S2SConstants.class,
+						**/XPathExecutor.class,
+						**/ChangeHistoryBean*.class,
+						**/ChangeHistoryGroup*.class,
+						**/Period.class,
+						**/MailActions.class,
+						**/IacucProtocolActionsConstants.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/query">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/query" includes="**/*.class" excludes="**/*Txn*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/tree">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/tree" includes="**/ITreeNodeInfo.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/question/bean">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/question/bean" includes="**/*.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/exception">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/exception" includes="**/CoeusException.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/budget">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/budget" includes="**/BudgetSubAwardConstants.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/budget">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/budget" includes="**/BudgetSubAwardConstants.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/document">
+			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/document" includes="**/DocumentConstants.class,DocumentBean.class"/>
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/documenttype">
+  			<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/documenttype" includes="**/DocumentType.class,DocumentTypeConstants.class,Match.class" /> 
+  		</copy>
+  		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/birt/bean">
+		  	<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/utils/birt/bean" includes="**/*.class" /> 
+  		</copy>
+		<!-- ########################################### -->				
+		<!-- JM 9-7-2011 copy in instance-specific files - not needed?
+  		<copy todir="${BUILD.HOME}/edu/mit/coeus/utils/scheduler">
+	        <fileset dir="${INST.HOME}" includes="**/Scheduler.xml"/>
+  		</copy>
+		########################################### -->
+	</target>
+	
+	
+	<!-- Compile all the client side components and make a jar file-->
+	<target name="COMPILECLIENTSIDE" depends="COMPILESERVERSIDE" description="Compiles Client side classes">
+		<!-- JM 6-7-2012 updated memory from 250 to 1024 -->
+		<javac srcdir="${SRC.HOME}/Client/src/" destdir="${BUILD.HOME}/" debug="${COMPILE.DEBUG}" deprecation="${COMPILE.DEPRECATION}" fork="yes" memoryMaximumSize="1024m" optimize="${COMPILE.OPTIMIZE}" encoding="ISO-8859-1">
+		<!-- JM END -->
+			<classpath refid="COMPILE.CLASSPATH"/>
+		</javac>
+	</target>
+	
+	
+	<!-- Creating a build folder and placing all the files needed in the build folder -->
+	<target name="build" depends="COMPILECLIENTSIDE" description="Includes all necessary files and maintain webapplication heirarchy">
+		<!-- Copy associated resource files to build directory -->
+		<!-- JM 10-10-2013 modified to exclude vanderbilt classes as will all go in vandycoeus.jar -->
+		<mkdir dir="${BUILD.HOME}/"/>
+		<copy todir="${BUILD.HOME}/">
+			<fileset dir="${SRC.HOME}/Client/src/" includes="**/*.htm,**/*.gif,**/*.jpg,**/*.jpeg,**/*.ico,**/*.icns,**/*.png,
+                **/*.class,**/*.jar,**/*.conf,**/*.properties,**/*.jnlp,**/*.jsp"
+				excludes="**/vanderbilt/**/*.class" />
+		</copy>
+		<copy todir="${BUILD.HOME}/">
+			<!-- ########################################### -->				
+			<!-- JM 9-7-2011 copy in instance-specific files -->
+			<fileset dir="${SRC.HOME}/Server/web/" includes="**/*.htm,**/*.gif,**/*.jpg,**/*.jpeg,**/*.ico,**/*.icns,**/*.png,
+                **/*.class,**/*.jar,**/*.conf,**/*.properties,**/*.jnlp,**/*.jsp"
+                excludes="**/CoeusWebStart.jsp,**/coeus.jnlp"/>
+            <fileset dir="${INST.HOME}" includes="**/jre-7u45-windows-i586.exe,
+            	**/CoeusWebStart.jsp,**/coeus.jnlp"/>
+			<!-- ########################################### -->	
+		</copy>
+		
+		<copy todir="${BUILD.HOME}/WEB-INF/classes/">
+			<!-- ########################################### -->				
+			<!-- JM 9-7-2011 copy in instance-specific files -->
+			<fileset dir="${SRC.HOME}/Server/src/" includes="**/*.htm,**/*.gif,**/*.jpg,**/*.jpeg,**/*.ico,**/*.icns,**/*.png,
+                **/*.class,**/*.jar,**/*.conf,**/*.properties,**/*.jnlp,**/*.jsp"
+                excludes="**/Authentication.xml,**/coeus.properties,**/CoeusMailService.properties,soap_server.properties,
+					**/vanderbilt/**,
+				**/planned_report_v1_0/**,
+				**/cumulative_inclusion_report_v1_0/**,
+				**/phs398_researchplan_v3_0/**,
+				**/phs398_researchtrainingprogramplan_v3_0/**"
+			/>
+			<fileset dir="${INST.HOME}" 
+            	includes="**/Authentication.xml,**/coeus.properties,**/CoeusMailService.properties,soap_server.properties"/>
+			<!-- ########################################### -->	
+		</copy>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/budget/report/">
+			<fileset dir="${SRC.HOME}/Client/src/edu/mit/coeus/budget/report/" includes="**/*.ttf,**/*.xml,**/*.xsl"/>
+		</copy>
+			
+		<!-- Create an resources Directory and copy  the properties file -->
+		<mkdir dir="${BUILD.HOME}/edu/mit/coeus/resources"/>
+		<copy todir="${BUILD.HOME}/edu/mit/coeus/resources">
+			<fileset dir="${SRC.HOME}/Client/src/edu/mit/coeus/resources" includes="**/*.properties,**/*.conf"/>
+		</copy>
+		<!-- always delete images folder and create it again, since there is a chance that coeus lite images from previous build
+		will move to resource jar -->
+		<delete dir="${BUILD.HOME}/images"/>
+		<mkdir dir="${BUILD.HOME}/images"/>
+		<copy todir="${BUILD.HOME}/images">
+			<fileset dir="${SRC.HOME}/Client/src/images" includes="**/*.gif,**/*.jpeg,**/*.jpg,**/*.ico,**/*.icns,**/*.png"/>
+		</copy>
+		
+		<!-- JM 6-3-2015 VU icon files -->
+		<mkdir dir="${BUILD.HOME}/images/icons"/>
+		<copy todir="${BUILD.HOME}/images/icons">
+			<fileset dir="${SRC.HOME}/Client/src/images/icons" includes="**/*.gif,**/*.jpeg,**/*.jpg,**/*.ico,**/*.icns,**/*.png"/>
+		</copy>
+		<!-- JM END -->
+		
+<!--
+***********  Section begins to create Jar files ***********
+-->
+
+<!--
+	Brokers jar file contains all the required files to communicate between server and client application.
+-->
+		<!-- JM 10-31-2013 added manifest files to all jars and to war file -->
+		<jar destfile="${BUILD.HOME}/brokers.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/mit/coeus/applet/*.class,
+		      edu/mit/coeus/bean/*.class,
+			edu/mit/coeus/brokers/*.class,
+			edu/mit/coeus/gui/**/*.class,
+			edu/mit/coeus/rates/**/*.class,
+			edu/mit/coeus/utils/**/*.class,
+			edu/mit/coeus/search/**/*.class,
+			edu/mit/coeus/exception/**/*.class,
+			edu/mit/coeus/negotiation/**/*.class,
+			edu/mit/coeus/businessrules/**/*.class,
+			edu/mit/coeus/subcontract/**/*.class,
+			*.class" excludes="**/WEB-INF/*"/>
+		</jar>
+		<!--
+	Resources jar file contains all the resource files like, images, properties, etc.
+-->
+		<jar destfile="${BUILD.HOME}/resources.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="*.properties,
+				edu/mit/coeus/resources/**/*.properties
+				**/*.gif,**/*.conf,
+				**/*.jpeg,**/*.ico,**/*.icns,**/*.png,
+				**/*.jpg" excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/commonlib.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/mit/coeus/codetable/**/*.class,
+			edu/mit/coeus/customelements/**/*.class,
+			edu/mit/coeus/departmental/**/*.class,
+			edu/mit/coeus/organization/**/*.class,
+			edu/mit/coeus/rolodexmaint/**/*.class,
+			edu/mit/coeus/sponsormaint/**/*.class,
+			edu/mit/coeus/sponsorhierarchy/**/*.class,
+			edu/mit/coeus/unit/**/*.class,
+			edu/mit/coeus/user/**/*.class,
+			edu/mit/coeus/user/**/*.properties,
+			edu/mit/coeus/user/**/*.gif,
+			edu/mit/coeus/user/**/*.jpeg,
+			edu/mit/coeus/user/**/*.jpg" excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/proposal.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/instprop/**/*.class,edu/**/instprop/**/*.properties" 
+					excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/award.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/award/**/*.class,edu/**/award/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/irb.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/irb/**/*.class,edu/**/irb/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/iacuc.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/iacuc/**/*.class,edu/**/iacuc/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/propdev.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/propdev/**/*.class,
+			  edu/**/budget/**/*.class,
+			  edu/**/budget/**/*.ttf,
+			  edu/**/budget/**/*.xml,
+			  edu/**/budget/**/*.xsl,
+			  edu/**/budget/**/*.properties" 
+				excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/centraladmin.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/centraladmin/**/*.class,edu/**/centraladmin/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<jar destfile="${BUILD.HOME}/admin.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/admin/**/*.class,edu/**/admin/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<!-- JM 10-10-2013 exclude vanderbilt s2s files as these will go in individual form jars -->
+		<jar destfile="${BUILD.HOME}/s2s.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/s2s/**/*.class,edu/**/s2s/**/*.properties" 
+				excludes="**/WEB-INF/*,**/vanderbilt/**/s2s/**/*.class" />
+		</jar>
+		<jar destfile="${BUILD.HOME}/mapsrules.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/mapsrules/**/*.class,edu/**/mapsrules/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<!-- added for questionnaire start -->
+		<jar destfile="${BUILD.HOME}/questionnaire.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/questionnaire/**/*.class,edu/**/questionnaire/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+		<!-- added for questionnaire end -->
+		<!-- added for questionnaire start -->
+		<jar destfile="${BUILD.HOME}/routing.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/**/routing/**/*.class,edu/**/routing/**/*.properties" excludes="**/WEB-INF/*"/>
+		</jar>
+            <!-- Added for coeus4.3 for E-mail enhancement - starts -->
+        <jar destfile="${BUILD.HOME}/coeusmail.jar" manifest="${MANIFEST.FILE}">
+	      <fileset dir="${BUILD.HOME}" 
+				includes="edu/**/mail/**/*.class,
+						  edu/**/mailaction/**/*.class,
+						  edu/**/personroles/**/*.class" excludes="**/WEB-INF/*" />
+  		</jar>
+		<!-- Added for coeus4.3 for E-mail enhancement - ends -->
+	
+		<!-- Added for coeus4.3 for UMDNJ reporting engine START -->
+		<jar destfile="${BUILD.HOME}/umdnjcoeus.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/umdnj/**/*.class" excludes="**/WEB-INF/*" />
+		</jar>
+		<!-- Added for coeus4.3 for UMDNJ reporting engine END-->
+		
+		<!-- JM 8-19-2011 Vanderbilt enhancements -->
+		<!-- JM 10-10-2013 updated to exclude form classes -->
+		<jar destfile="${BUILD.HOME}/vandycoeus.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" 
+				includes="edu/vanderbilt/coeus/**"
+				excludes="**/WEB-INF/**,
+					**/vanderbilt/**/s2s/**,
+					**/vanderbilt/**/bean/**,
+					**/vanderbilt/**/instprop/**,
+					**/vanderbilt/**/award/**" 
+				/>
+		</jar>
+		
+		<!-- Personalization START -->
+		<!-- Added for coeus4.3 for UCSD personalization engine -->
+		<jar destfile="${BUILD.HOME}/personalization_swing.jar" manifest="${MANIFEST.FILE}">
+			<fileset dir="${BUILD.HOME}" includes="edu/ucsd/**/*.class,edu/ucsd/**/*.properties,edu/ucsd/**/*.xml" excludes="**/WEB-INF/*" />
+		</jar>
+		
+		<copy  todir="${BUILD.HOME}/">       
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib" includes ="coeus-personalization.jar" />       
+	    </copy>
+		<!-- Personalization END -->
+		
+		<!-- New jar Files - START -->
+		<copy  todir="${BUILD.HOME}/">       
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib" includes ="avalon-framework-4.2.0.jar" />       
+	    </copy>
+	    <copy  todir="${BUILD.HOME}/">       
+		    <fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib" includes ="batik-all-1.6.jar" />       
+	    </copy>
+	    <copy  todir="${BUILD.HOME}/">       
+		    <fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib" includes ="poi-3.8-20120326.jar" />       
+	    </copy>
+	    <!-- New jar Files - END -->
+		
+		<mkdir dir="${BUILD.HOME}/Reports"/>
+		<copy todir="${BUILD.HOME}/Reports">
+			<fileset dir="${SRC.HOME}/Server/web/Reports" includes="**/*.txt, **/*.xsl"/>
+		</copy>
+		<!-- Delete the Edu Directory -->
+		<delete dir="${BUILD.HOME}/edu"/>
+		<delete dir="${BUILD.HOME}/images"/>
+		<mkdir dir="${BUILD.HOME}/images"/>
+		<copy todir="${BUILD.HOME}/images">
+			<fileset dir="${SRC.HOME}/Client/src/images" includes="**/couh*.gif"/>
+		</copy>
+		<mkdir dir="${BUILD.HOME}/images/icons"/>
+		<!-- JM 6-4-2015 include custom icons -->
+		<copy todir="${BUILD.HOME}/images/icons">
+			<fileset dir="${SRC.HOME}/Client/src/images" includes="**/*"/>
+		</copy>
+		<!-- JM END -->
+		<!--<mkdir    dir="${BUILD.HOME}/WEB-INF/classes"/>-->
+		<!-- JM 10-10-2013 updated to exclude Vanderbilt form classes -->
+		<copy todir="${BUILD.HOME}/WEB-INF/classes">
+			<fileset dir="${SRC.HOME}/Server/src" includes="**/*.class, 
+				**/*.properties, 
+				**/*.xml,
+				**/*.txt,
+				**/*.ttf,
+				**/*.xsl,
+				**/*.xsd,
+				**/*.dtd,
+				**/*.wsdl,
+				**/META-INF/services/*.*"
+			excludes="**/vanderbilt/coeus/s2s/**,
+				**/planned_report_v1_0/**, 
+				**/cumulative_inclusion_report_v1_0/**,
+				**/phs398_researchplan_v3_0/**,
+				**/phs398_researchtrainingprogramplan_v3_0/**" 
+			/>
+		</copy>
+		
+		<!--birt report Engine jars, config files etc -->
+		<copy todir="${BUILD.HOME}/BirtReportEngine">
+			<fileset dir="${SRC.HOME}/Server/web/BirtReportEngine"/>
+		</copy>
+
+		<!-- ########################################### -->				
+		<!-- JM 9-7-2011 copy in instance-specific files -->
+		<copy todir="${BUILD.HOME}/BirtReportEngine/workspace/.metadata/.plugins/org.eclipse.datatools.connectivity">
+			<fileset dir="${BIRT.HOME}/" includes="**/ServerProfiles.dat"/>
+		</copy>
+		
+		<copy todir="${BUILD.HOME}/BirtReportEngine/plugins/org.eclipse.birt.report.data.oda.jdbc_2.6.2.r262_v20110127/drivers">
+			<fileset dir="${BIRT}/" includes="**/ojdbc14.jar"/>
+		</copy>
+		<!-- ########################################### -->				
+		
+		<!--  prps start dec 8 2003 -->
+		<!-- this works with Ant 1.6.   -->
+		<propertyfile comment="Build Information" file="${BUILD.HOME}/WEB-INF/classes/builddetails.properties">
+			<entry key="build.date" type="date" pattern="EEEE MMM dd, yyyy" value="now"/>
+			<entry key="build.time" type="date" pattern="kk:mm:ss" value="now"/>
+			<entry key="build.timestamp" type="date" pattern="yyyy-MM-dd'T'HH:mm:ss" value="now"/>
+		</propertyfile>
+		<!--  prps end dec 8 2003 -->
+		<!-- copy web.xml -->
+		<copy file="${SRC.HOME}/Server/web/WEB-INF/web.xml" tofile="${BUILD.HOME}/WEB-INF/web.xml"/>
+		<copy file="${SRC.HOME}/Server/web/WEB-INF/server-config.wsdd" tofile="${BUILD.HOME}/WEB-INF/server-config.wsdd"/>
+		<!-- copy libraries -->
+		
+		<copy todir="${BUILD.HOME}/WEB-INF/lib">
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib" includes="**/*.jar"/>
+		</copy>
+		<copy todir="${BUILD.HOME}">
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib" includes="**/fop.jar,
+						**/avalon-framework-4.2.0.jar,
+						**/batik-all-1.6.jar,
+						**/poi-3.8-20120326.jar,
+						**/jsr173_1.0_api.jar,
+		     				**/xbean_xpath.jar,
+		     				**/log4j-1.2.8.jar,
+		     				**/xbean.jar,
+		     				**/personalization_swing.jar,
+		    				**/coeus-personalization.jar"/>
+		</copy>
+		<!-- CASE #748 Begin -->
+		<!-- Delete classes12.jar and ojdbc14.jar -->
+		<delete file="${BUILD.HOME}/WEB-INF/lib/classes12.jar"/>
+		<delete file="${BUILD.HOME}/WEB-INF/lib/ojdbc14.jar"/>
+		<delete file="${BUILD.HOME}/WEB-INF/lib/javaws.jar"/>
+		<!-- Copy web pages to web dir -->
+		<copy todir="${BUILD.HOME}/web">
+			<fileset dir="${SRC.HOME}/Server/web/web" includes="**/*.jsp,**/*.htm,**/*.html"/>
+		</copy>
+       
+       <copy  todir="${BUILD.HOME}/web/scripts">       
+	       <fileset dir="${SRC.HOME}/Server/web/web/scripts" includes="**/*.js" />       
+       </copy>
+		<mkdir dir="${BUILD.HOME}/WEB-INF/coeus-tlds"/>
+		<!-- Copy coeus tag library descriptors -->
+		<copy todir="${BUILD.HOME}/WEB-INF/coeus-tlds">
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF/coeus-tlds" includes="**/*.tld"/>
+		</copy>
+		<mkdir dir="${BUILD.HOME}/WEB-INF/lib-tlds"/>
+		<!-- Copy struts tag library descriptors -->
+		<copy todir="${BUILD.HOME}/WEB-INF/lib-tlds">
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF/lib-tlds" includes="**/*.tld"/>
+		</copy>
+		<copy file="${SRC.HOME}/Server/web/WEB-INF/struts-config.xml" tofile="${BUILD.HOME}/WEB-INF/struts-config.xml"/>
+		<!-- CoeusLite Start 1-->
+		<!-- Copy config and validation plugin -->
+		<copy todir="${BUILD.HOME}/WEB-INF">
+			<fileset dir="${SRC.HOME}/Server/web/WEB-INF" includes="**/struts*.xml , **/valid*.xml"/>
+		</copy>
+	        <!-- Copy the META-INF folder, to copy the context.xml file -->
+		<!--
+	        <copy todir="${BUILD.HOME}/META-INF">
+	            <fileset dir="${SRC.HOME}/Server/web/META-INF" />
+	        </copy>
+		-->
+	        <!--copy todir="${BUILD.HOME}/META-INF">
+	            <fileset dir="${SRC.HOME}/Server/src/META-INF" />
+	        </copy-->
+		<copy todir="${BUILD.HOME}/coeuslite">
+			<fileset dir="${SRC.HOME}/Server/web/coeuslite" includes="**/*.css,**/*.jsp,**/*.htm,**/*.html,**/*.js,**/*.png"/>
+		</copy>
+		<!-- CoeusLite End 1 -->
+		<!-- Copy all web images to images dir -->
+		<copy todir="${BUILD.HOME}/images">
+			<fileset dir="${SRC.HOME}/Server/web/web images" includes="**/*.jpg,**/*.gif,**/*.png,**/*.ico,**/*.icns"/>
+		</copy>
+		<!-- CoeusLite Start 2 -->
+		<copy todir="${BUILD.HOME}/coeusliteimages">
+			<fileset dir="${SRC.HOME}/Server/web/coeusliteimages" includes="**/*.gif,**/*.jpeg,**/*.jpg"/>
+		</copy>
+		<!-- CoeusLite End 2 -->
+		<!-- Delete web images dir -->
+		<delete dir="${BUILD.HOME}/web images"/>
+		<!-- CASE #748 End -->
+		<signjar keystore="${KEYSTORE.FILE}" alias="${KEYSTORE.ALIAS}" storepass="${KEYSTORE.STOREPASS}" keypass="${KEYSTORE.KEYPASS}" verbose="false">
+			<fileset dir="${BUILD.HOME}" includes="*.jar"/>
+		</signjar>
+		<!-- Excluding s2s classes from the Coeus 4.0 final release -->
+		<!-- BEGIN -->
+		<!--       <delete>
+		<fileset dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/s2s" includes="*.class" />
+ 	</delete>
+       <delete dir="${BUILD.HOME}/WEB-INF/classes/edu/mit/coeus/s2s/validator" />
+       <delete dir="${BUILD.HOME}/WEB-INF/classes/gov" />
+-->
+		
+		<!-- CASE #748 Comment End -->
+		<!-- CASE #748 Begin -->
+		<!-- Also include .tld, .jsp, .html and .js files -->
+		<!-- JM 10-25-2013 exclude Vanderbilt GG form classes -->
+		<war destfile="${DIST.HOME}/${APP.NAME}.war" 
+			webxml="${BUILD.HOME}/WEB-INF/web.xml" 
+			basedir="${BUILD.HOME}" 
+			manifest="${MANIFEST.FILE}"
+			includes="**/*.jar, **/*.htm, **/*.class, 
+					**/*.gif,**/*.png, **/*.xml, **/*.txt, 
+					**/*.properties, **/*.jnlp,**/*.txt,
+					**/*.ttf,**/*.xsl,**/*.xsd,**/*.jsp,**/*.js,
+					**/*.tld,**/*.html,**/*.jpg,**/*.ico,**/*.icns,**/*.png,**/*.css,**/*.wsdd,**/*.dtd,
+					**/*.wsdl,
+					WEB-INF/classes/META-INF/services/*.*,**/*.exe,
+				BirtReportEngine/**/*.*"
+			excludes="**/edu/vanderbilt/coeus/s2s/**,
+				**/planned_report_v1_0/**,
+				**/cumulative_inclusion_report_v1_0/**,
+				**/phs398_researchplan_v3_0/**,
+				**/phs398_researchtrainingprogramplan_v3_0/**" 
+		>
+			
+			<!-- CASE #748 End -->
+			<!-- Add classes directory -->
+			<!--  <classes dir="${BUILD.HOME}/${APP.NAME}/WEB-INF/classes" />-->
+			<!-- Add lib directory -->
+			<!-- <lib dir="${BUILD.HOME}/${APP.NAME}/WEB-INF/lib"/> -->
+		</war>
+		<!--	  <delete dir="${BUILD.HOME}" /> -->
+		<!-- copy the war file into tomcat4.0 -->
+		<!--   
+       <delete dir="${DEPLOY.HOME}/${APP.NAME}" />
+       	  
+
+       	  
+	  <delete file="${DEPLOY.HOME}/${APP.NAME}.war" />
+
+	<copy file="${DIST.HOME}/${APP.NAME}.war" todir="${DEPLOY.HOME}"/>
+
+       <delete file="E:/share/CoeusApplet.war" />
+       <copy file="${DIST.HOME}/${APP.NAME}.war" todir="E:/share"/>   
+	-->
+	
+	
+	<!--zip destfile="${RELEASE.HOME}/src.zip" basedir="${SOURCE.HOME}"/-->
+  		<record name="log.txt" action="stop"/>
+  		<copy file="ant_log.txt" todir="${RELEASE.HOME}"/>
+  		<!--delete dir="${SRC.HOME}" /-->
+  		<delete dir="${RELEASE.HOME}/b" />
+	
+	</target>
+	
+	
+	
+</project>
